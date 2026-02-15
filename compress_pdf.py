@@ -8,119 +8,11 @@ import subprocess
 import os
 import sys
 from pathlib import Path
-
-def get_file_size_mb(filepath):
-    """Get file size in MB"""
-    size_bytes = os.path.getsize(filepath)
-    return size_bytes / (1024 * 1024)
-
-def compress_with_qpdf(input_path, output_path):
-    """Method 1: QPDF compression"""
-    print("Trying QPDF compression...")
-    try:
-        subprocess.run([
-            'qpdf',
-            '--optimize-images',
-            '--compression-level=9',
-            input_path,
-            output_path
-        ], check=True, capture_output=True, text=True)
-        
-        size = get_file_size_mb(output_path)
-        print(f"✓ QPDF compression complete: {size:.2f} MB")
-        return True, size
-    except subprocess.CalledProcessError as e:
-        print(f"✗ QPDF failed: {e.stderr}")
-        return False, None
-    except FileNotFoundError:
-        print("✗ QPDF not found (installing...)")
-        try:
-            subprocess.run(['sudo', 'apt-get', 'install', '-y', 'qpdf'], 
-                         check=True, capture_output=True)
-            return compress_with_qpdf(input_path, output_path)
-        except:
-            print("Could not install QPDF")
-            return False, None
-
-def compress_with_ghostscript(input_path, output_path, quality='screen'):
-    """
-    Method 2: Ghostscript compression
-    Quality levels:
-    - screen: 72 dpi (smallest, lowest quality)
-    - ebook: 150 dpi (good for most uses)
-    - printer: 300 dpi (high quality)
-    - prepress: 300 dpi (highest quality)
-    """
-    quality_settings = {
-        'screen': '/screen',
-        'ebook': '/ebook',
-        'printer': '/printer',
-        'low': '/screen'
-    }
-    
-    dpi_setting = quality_settings.get(quality, '/ebook')
-    print(f"Trying Ghostscript compression (quality: {quality})...")
-    
-    try:
-        subprocess.run([
-            'gs',
-            '-sDEVICE=pdfwrite',
-            '-dCompatibilityLevel=1.4',
-            '-sColorConversionStrategy=Gray',
-            '-dProcessColorModel=/DeviceGray',
-            f'-dPDFSETTINGS={dpi_setting}',
-            '-dColorImageResolution=30',
-            '-dGrayImageResolution=30',
-            '-dMonoImageResolution=30',
-            '-dJPEGQ=30',
-            '-dColorImageDownsampleType=/Bicubic',
-            '-dGrayImageDownsampleType=/Bicubic',
-            '-dNOPAUSE',
-            '-dQUIET',
-            '-dBATCH',
-            f'-sOutputFile={output_path}',
-            input_path
-        ], check=True, capture_output=True, text=True)
-        
-        size = get_file_size_mb(output_path)
-        print(f"✓ Ghostscript compression complete: {size:.2f} MB")
-        return True, size
-    except subprocess.CalledProcessError as e:
-        print(f"✗ Ghostscript failed: {e.stderr}")
-        return False, None
-    except FileNotFoundError:
-        print("✗ Ghostscript not found (installing...)")
-        try:
-            subprocess.run(['sudo', 'apt-get', 'install', '-y', 'ghostscript'], 
-                         check=True, capture_output=True)
-            return compress_with_ghostscript(input_path, output_path, quality)
-        except:
-            print("Could not install Ghostscript")
-            return False, None
-
-def compress_with_imagemagick(input_path, output_path, quality=85):
-    """Method 3: ImageMagick compression"""
-    print(f"Trying ImageMagick compression (quality: {quality})...")
-    
-    try:
-        subprocess.run([
-            'convert',
-            '-density', '150',
-            '-quality', str(quality),
-            '-compress', 'jpeg',
-            input_path,
-            output_path
-        ], check=True, capture_output=True, text=True)
-        
-        size = get_file_size_mb(output_path)
-        print(f"✓ ImageMagick compression complete: {size:.2f} MB")
-        return True, size
-    except subprocess.CalledProcessError as e:
-        print(f"✗ ImageMagick failed: {e.stderr}")
-        return False, None
-    except FileNotFoundError:
-        print("✗ ImageMagick not found")
-        return False, None
+from pdf_compressor.utils import get_file_size_mb
+from pdf_compressor.config import DEFAULT_TARGET_SIZE, LLM_OPTIMIZED
+from pdf_compressor.compressors.qpdf import compress_with_qpdf
+from pdf_compressor.compressors.ghostscript import compress_with_ghostscript
+from pdf_compressor.compressors.imagemagick import compress_with_imagemagick
 
 def main():
     if len(sys.argv) != 2:
@@ -146,8 +38,8 @@ def main():
     original_size = get_file_size_mb(input_path)
     print(f"\n📄 Original file: {Path(input_path).name}")
     print(f"📊 Original size: {original_size:.2f} MB")
-    print(f"🎯 Target: < 31 MB\n")
-    
+    print(f"🎯 Target: < {DEFAULT_TARGET_SIZE} MB\n")
+
     base_name = Path(input_path).stem
     output_dir = os.path.join(os.getcwd(), "outputs")
     os.makedirs(output_dir, exist_ok=True)
