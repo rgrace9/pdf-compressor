@@ -12,7 +12,6 @@ from pdf_compressor.utils import get_file_size_mb
 from pdf_compressor.config import DEFAULT_TARGET_SIZE, LLM_OPTIMIZED
 from pdf_compressor.compressors.qpdf import compress_with_qpdf
 from pdf_compressor.compressors.ghostscript import compress_with_ghostscript
-from pdf_compressor.compressors.imagemagick import compress_with_imagemagick
 
 def main():
     if len(sys.argv) != 2:
@@ -64,11 +63,7 @@ def main():
     if success:
         results.append(('Ghostscript (screen)', output3, size))
     
-    # Strategy 4: ImageMagick with reduced quality
-    output4 = f"{output_dir}/{base_name}_imagemagick.pdf"
-    success, size = compress_with_imagemagick(input_path, output4, quality=75)
-    if success:
-        results.append(('ImageMagick (q75)', output4, size))
+
     
     # Print summary
     print("\n" + "="*60)
